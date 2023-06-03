@@ -3,9 +3,6 @@
 
 var auth = google_oauth("/google.json", "https://www.googleapis.com/auth/drive");
 
-auth.get_oath_token(3600)
-print(auth.access_token)
-
 var gdrive = google_drive(auth)
 
 # !!!!change to the folder id of a folder you shared with your service account...!!!!

@@ -76,16 +76,16 @@ class google_oauth
     var sign = crypto.RSA.rs256(self.private_key_DER, body_b64)
     var b64sign = self.base64url(sign)
     var jwt_token = body + '.' + b64sign
-    print('created jwt')
+    #print('created jwt')
     return jwt_token
   end
 
   # internal - called if we NEED a new access_token
   def get_oath_token(duration)
     var jwt = self.create_google_jwt(duration)
-    print('got jwt')
+    #print('got jwt')
     var cl = webclient();
-    print('got cl')
+    #print('got cl')
     
     cl.begin('https://oauth2.googleapis.com/token')
     var payload = 
@@ -94,7 +94,7 @@ class google_oauth
     var r = cl.POST(payload)
     if r == 200
       var s = cl.get_string()
-      print(s)
+      #print(s)
       var jmap = json.load(s)
       jmap.remove('id_token')
       #print(jmap)
@@ -102,6 +102,8 @@ class google_oauth
       var time = tasmota.rtc()
       self.refresh_time = time['utc'] + jmap['expires_in'] - 10
       print('got new access_token')
+    else
+      print('failed to get new access_token')
     end
   end
 

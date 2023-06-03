@@ -21,10 +21,10 @@ class google_drive
       #print('file created ' .. s)
 
       var id = json.load(s)['id']
-      print('file id ' .. id)
+      #print('file id ' .. id)
       var clfile = webclient()
       var url = 'https://www.googleapis.com/upload/drive/v3/files/' ..id .. '?uploadType=media'
-      print(url)
+      #print(url)
       clfile.begin(url)
       #print('begin file upload')
       body = bytesdata
