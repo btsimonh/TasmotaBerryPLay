@@ -10,6 +10,9 @@ The google API documentation is not great - it's quite hard to find out how to u
 
 **BEWARE - files written are OWNED b the service account. i.e. they are NOT 'in' your drive - they are in the service account's drive.  Hence if you remove them from your drive, they still exist...  and I don't know if as a user, you can delete them?**
 
+**Edit: note new delete functions, and cleanservicefiles**
+
+
 ### Requirements
 
 Ensure that yout TAS is latest dev branch, and has at least:
@@ -43,6 +46,14 @@ Create a gdrive object using `var gdrive = google_drive(auth)`
 
 To write a file to a folder which has been shared with your service account, you need the folderID (the number in the link when you look at the folder in google drive).  To write to a file, use `gdrive.write(folder_id, 'mytestfile.txt', "text text or bytes")`
 
+To delete a file use `gdrive.delete(fileId)`
+
+To list a folder `gdrive.readdir(nil || <folder ID>)` (could blow memory away?)
+
+To get the folder(s) that a file is in `gdrive.getparents(fileid)`
+
+To delete all files which belong to the service account, but are no longer referenced by a folder `gdrive.cleanservicefiles()` (will be slow, could blow memory away?).
+
 Example:
 ```
 var auth = google_oauth("/google.json", "https://www.googleapis.com/auth/drive");
@@ -53,7 +64,9 @@ print(resp)
 
 #### [gdrivetest.be](./gdrivetest.be)
 
-A very simple complete example.
+A very simple complete example.  
+
+May be broken from time to time...
 
 #### [gdrivepics.be](./gdrivepics.be) 
 
