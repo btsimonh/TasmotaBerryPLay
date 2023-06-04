@@ -7,10 +7,34 @@ import introspect
 var auth = google_oauth("/google.json", "https://www.googleapis.com/auth/drive");
 var gdrive = google_drive(auth)
 
-var piccount = 0
-var folder_id = "1evt2oAqN0xQ8mQOj8KYDUR4Om7QTrvna"
+if !global.piccount
+  global.piccount = 0
+end
 
-def uploadPicNow()
+var shared_folder_id = "1evt2oAqN0xQ8mQOj8KYDUR4Om7QTrvna"
+var picfoldername = 'pics2'
+var howmany = 2
+
+print('get picfolder ' .. picfoldername)
+var picfolders = gdrive.readdir(shared_folder_id, "name%20=%20%27" .. picfoldername .. "%27", "files(id)")
+print(picfolders)
+var picfolderid = nil
+if picfolders && picfolders['files']
+  var files = picfolders['files']
+  if size(files)
+    picfolderid = files[0]['id']
+    print('found picfolder ' .. picfolderid)
+  end
+end
+
+if !picfolderid
+  print('create picfolder ' .. picfoldername)
+  picfolderid = gdrive.mkdir(shared_folder_id, picfoldername)
+  print('created picfolder ' .. picfolderid)
+end
+
+
+def uploadPicNow(infolderid)
   var cmd = "wcgetpicstore 0"; # force a read into the first buffer, and return the buffer addr/len
   var resobj = tasmota.cmd(cmd);
   # res like {"WCGetpicstore":{"addr":123456,"len":20000,"buf":1}
@@ -21,13 +45,15 @@ def uploadPicNow()
     var p = introspect.toptr(addr) # p is now of type ptr:
     var b = bytes(p, len) # b is now an unmanaged bytes object:  b.ismapped() should return true
     print(b)
-    gdrive.write(folder_id, 'frame' .. piccount .. '.jpeg', b)
+    gdrive.write(infolderid, 'frame' .. piccount .. '.jpeg', b)
     piccount = piccount + 1
   else 
     print('no picture')
   end
 end
 
-uploadPicNow()
-uploadPicNow()
-uploadPicNow()
+if picfolderid
+  for i:0..(howmany-1)
+    uploadPicNow(picfolderid)
+  end
+end
