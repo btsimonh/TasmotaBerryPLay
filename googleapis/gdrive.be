@@ -149,6 +149,43 @@ class google_drive
     return m
   end
 
+  def getfiledetails(fileid)
+    var cl = webclient()
+    var url = 'https://www.googleapis.com/drive/v2/files/' .. fileid
+    print(url)
+    cl.begin(url)
+    self.auth.add_access_key(cl)
+    var r = cl.GET()
+    var s = cl.get_string()
+    var m = json.load(s)
+    if r != 200
+      print('get file failed ' .. r)
+      print('resp map ' .. m)
+    end
+    return m
+  end
+
+  def readfileasstring(fileid)
+    var cl = webclient()
+    var url = 'https://www.googleapis.com/drive/v2/files/' .. fileid .. '?alt=media'
+    print(url)
+    cl.begin(url)
+    self.auth.add_access_key(cl)
+    var r = cl.GET()
+    var s = nil
+    try
+      s = cl.get_string()
+    except ..
+      print('file too big?')
+    end
+    if r != 200
+      print('get file failed ' .. r)
+      var m = json.load(s)
+      print('resp map ' .. m)
+    end
+    return s
+  end
+  
   # delete all files in the sevice root which are owned by the service account.
   # i.e. any which the user has 'deleted' from the folder
   ##### USE WITH CARE - DON'T USE IF YOU ARE NOT USING A SEVICE ACCOUNT
