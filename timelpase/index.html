@@ -66,12 +66,16 @@
               try{
                 const response = await fetch(url+'frame'+frame+'.json');
                 jsonData = await response.json();
+                console.log(jsonData);
               } catch(e){
                 console.error(e);
               }
               pic.src = url+'frame'+frame+'.jpg';
               framedone = 0;
               framespan.innerText = frame+':'+jsonData.time;
+              if (jsonData.val){
+                framespan.innerText += ' Mvmt:'+val; 
+              }
               framedisplay.innerText = ''+frame + '/'+slider.max;
             }, 100);
           }
@@ -122,7 +126,7 @@
                     lastframe = 0;
                     let folderel = document.getElementById('folder');
                     folderel.innerText = f;
-
+                    framedisplay.innerText = ''+frame + '/'+slider.max;
                     return true;
                 } catch(e) {
                     return false;
@@ -178,9 +182,10 @@
                     const jsonData = await response.json();
                     //console.log(jsonData);
                     let slider = document.getElementById('slider');
-                    let framecount = +jsonData.frame;
+                    framecount = +jsonData.frame;
                     // framecount is the NEXT frame it will capture.
                     slider.max = framecount-2;
+                    framedisplay.innerText = ''+frame + '/'+slider.max;
                     updatecounter = 10;
                 } catch(e){
                   console.error(e);
@@ -201,7 +206,7 @@
     <div id="folders" class="slidecontainer">
     </div>
     <div class="slidecontainer">
-      <p>Timelapse <span id="folder"></span><span id="frame"></span></span></p>
+      <p>Timelapse <span id="folder"></span> frame:<span id="frame"></span></span></p>
     </div>
     <div class="slidecontainer">
       <image id="image"></image>
