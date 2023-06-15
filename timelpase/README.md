@@ -1,12 +1,12 @@
 # Timelapse/Motion using Berry in Tasmota
 
-load zap.be
+merge this [PR](https://github.com/arendst/Tasmota/pull/18859) into your branch, and `#define UFILESYS_STATIC_SERVING`
+
+load zap.be (https://github.com/tasmota/Berry_playground/pull/21)
 load timelapse.be
 
 First run will create /sd/timelapse/
-Put index.html and imageviewer into this folder.
-
-merge this [PR](https://github.com/arendst/Tasmota/pull/18859) and `#define UFILESYS_STATIC_SERVING`
+Put `index.html` and `imageviewer.js` into this folder.
 
 Description: 
 
