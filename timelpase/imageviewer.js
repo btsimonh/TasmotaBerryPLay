@@ -30,7 +30,7 @@ function restart(){
 }
 window.restart = restart;
 function incr(){
-  if (+frame < +framecount-1){
+  if (+frame < +framecount){
     frame = +frame + 1;
     slider.value = +frame;
   }
@@ -110,7 +110,7 @@ window.onload=()=>{
     let filelist = [];
     let download = document.getElementById('downloading');
 
-    for (let i = 0; i < framecount-1; i++){
+    for (let i = 0; i < framecount; i++){
       filelist.push({name:'frame'+i+'.json', url:url+'frame'+i+'.json'});
       filelist.push({name:'frame'+i+'.jpg', url:url+'frame'+i+'.jpg'});
     }
@@ -152,7 +152,7 @@ window.onload=()=>{
                 currfolderabs = currfolderabs.slice(0, -1);
               }
               // framecount is the NEXT frame it will capture.
-              slider.max = +framecount-2;
+              slider.max = +framecount-1;
               lastframe = 0;
               let folderel = document.getElementById('folder');
               folderel.innerText = f;
@@ -222,7 +222,7 @@ window.onload=()=>{
               let slider = document.getElementById('slider');
               framecount = +jsonData.frame;
               // framecount is the NEXT frame it will capture.
-              slider.max = framecount-2;
+              slider.max = framecount-1;
               framedisplay.innerText = ''+frame + '/'+slider.max;
               updatecounter = 10;
           } catch(e){
