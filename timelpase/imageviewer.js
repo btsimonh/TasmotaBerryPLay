@@ -14,6 +14,7 @@ let framedone = 1;
 let framecount = 1;
 
 let currfolder;
+let currfolderabs;
 
 function pause(){
   pauseframe = 1;
@@ -146,6 +147,10 @@ window.onload=()=>{
               const jsonData = await response.json();
               //console.log(jsonData);
               framecount = jsonData.frame;
+              currfolderabs = jsonData.currfolder;
+              if (currfolderabs.endsWith('/')){
+                currfolderabs = currfolderabs.slice(0, -1);
+              }
               // framecount is the NEXT frame it will capture.
               slider.max = +framecount-2;
               lastframe = 0;
@@ -174,8 +179,9 @@ window.onload=()=>{
           b.onclick = async (ev)=>{
               if (ev.altKey){
                   if (window.confirm('Do you wish to delete "'+f+'" and all contents?')){
+                      await seturl(f); // sets currfolderabs
                       //http://192.168.1.190/cs?c2=166&c1=zapfolder%20test
-                      let tascmd = 'http://'+location.host+'/cm?cmnd=zapimagefolder%20'+f;
+                      let tascmd = 'http://'+location.host+'/cm?cmnd=zapfolder%20'+currfolderabs;
                       let resp = await fetch(tascmd)
                       const res = await resp.text();
                       console.log(res);
@@ -187,11 +193,11 @@ window.onload=()=>{
               }else {
                 if (ev.ctrlKey){
                   if (window.confirm('Do you wish to download "'+f+'" and all contents?')){
-                    seturl(f);
+                    await seturl(f);
                     download(f);
                   }
                 } else {
-                  seturl(f);
+                  await seturl(f);
                 }
               }
           };
