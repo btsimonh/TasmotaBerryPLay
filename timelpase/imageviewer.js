@@ -3,7 +3,7 @@ import { downloadZip } from "https://cdn.jsdelivr.net/npm/client-zip/index.js"
 let frame = 0;
 let lastframe = 0;
 let pauseframe = 0;
-let interval = 500;
+let interval = 1000;
 //let base = '%s';
 //let folder;// = '%s';
 let url;// = 'http://'+base+'/fs'+folder;
@@ -47,36 +47,45 @@ let frametimer;
 function showframe(){
     if (!frametimer){
       frametimer = setTimeout(async ()=>{
+        // syncronously get the json and image data
         clearTimeout(frametimer);
-        frametimer = null;
+        // value of frame at start of sync get
+        let f = frame;
         if (!framedone){
           // if we did not get the last frame, just wait a little longer.
           console.log('waiting last complete');
           showframe();
           return;
         }
-        lastframe = frame;
+        lastframe = f;
         let jsonData = {time:'unknown'};
         try{
-          const response = await fetch(url+'frame'+frame+'.json');
+          const response = await fetch(url+'frame'+f+'.json');
           jsonData = await response.json();
           console.log(jsonData);
         } catch(e){
           console.error(e);
         }
-        pic.src = url+'frame'+frame+'.jpg';
+        let picurl = url+'frame'+f+'.jpg';
+        let picresp = await fetch(picurl)
+        let picblob = await picresp.blob();
+        let picURL = URL.createObjectURL(picblob);
+
+        pic.src = picURL;
         framedone = 0;
-        framespan.innerText = frame+':'+jsonData.time;
+        framespan.innerText = f+':'+jsonData.time;
         if (jsonData.val){
           framespan.innerText += ' Mvmt:'+jsonData.val; 
         }
-        framedisplay.innerText = ''+frame + '/'+slider.max;
-      }, 100);
+        framedisplay.innerText = ''+f + '/'+slider.max;
+        frametimer = null;
+      }, 10);
     }
   }
 
 function sliderchange(val){
   frame = +val;
+  framedisplay.innerText = ''+frame + '/'+slider.max;
   showframe();
 }
 window.sliderchange = sliderchange;
@@ -160,7 +169,6 @@ window.onload=()=>{
               lastframe = 0;
               let folderel = document.getElementById('folder');
               folderel.innerText = f;
-              framedisplay.innerText = ''+frame + '/'+slider.max;
               return true;
           } catch(e) {
               return false;
