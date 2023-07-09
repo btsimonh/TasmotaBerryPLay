@@ -116,18 +116,22 @@ window.onload=()=>{
     }
     console.log(filelist);
 
-    let promises = [];
+    let inputs = [];
     for (let i = 0; i < filelist.length; i++){
       try{
         let promise = fetch(filelist[i].url);
         let response = await promise;
-        promises.push({name:filelist[i].name, input:response});
+        // get the blob here so that the transaction is completed, and
+        // we only have one transaction at a time against tas.
+        let blob = await response.blob();
+
+        inputs.push({name:filelist[i].name, input:blob});
         download.innerText = 'downloaded '+ filelist[i].name+' '+i+'/'+filelist.length;
       }catch(e){
         console.error(e, filelist[i]);
       }
     }
-    const blob = await downloadZip(promises).blob()
+    const blob = await downloadZip(inputs).blob()
   
     const link = document.createElement("a")
     link.href = URL.createObjectURL(blob)
