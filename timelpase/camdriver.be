@@ -2,6 +2,7 @@ import json
 import path
 import string
 import webserver
+import introspect
 
 def zap(folder, diag)
   if !folder || folder == '/'
@@ -86,6 +87,7 @@ class camdriver
             'enable':0,
             'interval':3000,
             'holdoff_s':30,
+            'http':nil,
             'basefolder':"/sd/timelapse",
             'folder':"motion",
             'hourlimitlow':0,
@@ -101,6 +103,7 @@ class camdriver
         self.motionoptionslist = [
             "enable",
             "interval",
+            "http",
             "basefolder",
             "folder",
             "hourlimitlow",
@@ -116,6 +119,7 @@ class camdriver
 
         self.defaulttimelapseoptions = {
             'enable':0,
+            'http':nil,
             'basefolder':"/sd/timelapse",
             'folder':"tl",
             'cronstring':'*/1 * * * *', # e.g. '*/1 * * * *'
@@ -128,6 +132,7 @@ class camdriver
 
         self.timelapseoptionslist = [
             "enable",
+            "http",
             "basefolder",
             "folder",
             "cronstring",
@@ -345,37 +350,45 @@ class camdriver
     # create or read json from a folder with today's date.
     def newfolder(options)
         print('new folder')
-        var time = tasmota.rtc()
-        var local = time['local']
-        var t = tasmota.time_dump(local)
-        print(t)
-        self.currday = t['day']
-        print(self.currday)
-        if path.mkdir(options['basefolder'])
-            print('created folder '..options['basefolder'])
+        if !options['http']
+            if path.mkdir(options['basefolder'])
+                print('created folder '..options['basefolder'])
+            else
+                print('could not creat folder '.. options['basefolder'])
+            end
+            options['currfolderrel'] = options['folder'] .. '/'
+            options['currfolder'] = options['basefolder'] .. '/' .. options['folder']
+            print('try create folder '..options['currfolder'])
+            if path.mkdir(options['currfolder'])
+                print('created folder '.. options['currfolder'])
+            else
+                print('could not creat folder '.. options['currfolder'])
+            end
         end
-        options['currfolder'] = options['basefolder']..'/'..options['folder'] .. t['year'] .. '-' .. t['month'] ..'-' .. t['day']
-        print('try create folder '..options['currfolder'])
-        if path.mkdir(options['currfolder'])
-            print('created folder '..options['currfolder'])
-        end
-        options['currfolder'] = options['currfolder'] .. '/'
 
         # read firstframe and frame from config.json if it exists.
         var configread = 0;
         # set defaults
         options['frame'] = 0
         options['firstframe'] = 0
-
-        var f
-        try
-            f = open(options['currfolder'] .. 'config.json', 'r')
-        except ..
-            print('did not open '..options['currfolder'] .. 'config.json')
+        var config
+        if options['http']
+            # read config from the web
+            config = self.getfromweb(options, options['currfolderrel'] .. 'config.json')
+        else
+            var f
+            try
+                f = open(options['currfolder'] .. '/config.json', 'r')
+            except ..
+                print('did not open '..options['currfolder'] .. '/config.json')
+            end
+            if f
+                config = f.read();
+                f.close()
+            end
         end
-        if f
-            var config = f.read();
-            f.close()
+
+        if config
             var configmap = json.load(config);
             if configmap
                 print(configmap)
@@ -397,54 +410,134 @@ class camdriver
         self.updatelist(options)
     end
 
+    # simple post to http or https -
+    # filename added to the end of options['basefolder'] as url
+    def posttoweb(options, relpath, bytesdata)
+        # first, create the file, and read it's id
+        var cl = webclient()
+        var url = options['http'] .. '/' .. relpath;
+        cl.begin(url)
+        cl.addheader('content-type', 'application/octet-stream');
+        var body = bytesdata
+        var r = cl.POST(body)
+        var s = cl.get_string();
+        if r == 200
+            print('file uploaded ' .. s)
+        else
+            print('file create failed' .. r .. s)
+        end
+    end
+
+    # simple post to http or https -
+    # filename added to the end of options['basefolder'] as url
+    def getfromweb(options, relpath)
+        # first, create the file, and read it's id
+        var cl = webclient()
+        var url = options['http'] .. '/' .. relpath;
+        cl.begin(url)
+        var r = cl.GET()
+        var s = cl.get_string();
+        if r == 200
+            print('file downloaded ' .. s)
+            return s;
+        else
+            print('file download failed' .. r .. s)
+            return nil
+        end
+    end
+
+
+    # read a picture (jpg) from tas as bytes and return them
+    def getpicasbytes(n)
+        # get an image
+        var cmd = "Wcgetpicstore" .. n
+        var resobj = tasmota.cmd(cmd);
+        # returns `WCGetpicstore:{"addr":123456,"len":12345,"w":160,"h":120, "format":5}`
+        var addr = resobj['WCGetpicstore']['addr']
+        var len = resobj['WCGetpicstore']['len']
+        if len
+            print('got picture')
+            var p = introspect.toptr(addr) # p is now of type ptr:
+            var b = bytes(p, len) # b is now an unmanaged bytes object:  b.ismapped() should return true
+            return b
+        else 
+            print('no picture')
+            return nil
+        end
+    end
+
+    # options: options struture, picnum 0-4, relpath relative to options['basefolder']
+    # save to either SD or post to web if options['http']
+    def savepicraw(options, picnum, relpath)
+        if options['http']
+            # post to web
+            var picbytes = self.getpicasbytes(picnum);
+            if picbytes
+                self.posttoweb(options, relpath, picbytes)
+            end
+        else
+            # save to local FS using tas function
+            var cmd = "wcsavepic" .. picnum .." ".. options['basefolder'] .. '/' .. relpath
+            var resobj = tasmota.cmd(cmd);
+            print('saved pic '..cmd..resobj)
+        end
+    end
+
+    # options: options struture, picnum 0-4, relpath relative to options['basefolder']
+    # save to either FS or post to web if options['http']
+    def saveraw(options, datastr, relpath)
+        if options['http']
+            # post to web
+            if datastr
+                self.posttoweb(options, relpath, datastr)
+            end
+        else
+            var f
+            try
+                f = open(options['basefolder'] .. '/' .. relpath, 'w')
+            except ..
+                print('could not write '..options['basefolder'] .. '/' .. relpath)
+            end
+            if f
+                f.write(datastr)
+                f.close()
+            end
+        end
+    end
+
     # write config.json in the current folder
     # this is the complete options used to write
     # the last image, but including 'firstframe' and 'frame'
     def updateconfig(options)
-        var config = json.dump(options, 'format');
-        var f
-        try
-            f = open(options['currfolder'] .. 'config.json', 'w')
-        except ..
-            print('could not write '..options['currfolder'] .. 'config.json')
-        end
-        if f
-            f.write(config)
-            f.close()
-            # print('wrote config' .. config)
-        end
+        var datastr = json.dump(options, 'format')
+        self.saveraw(options, datastr, options['currfolderrel'] .. 'config.json')
     end
 
     # writes a list of folders to folders.json in 
     # the base folder for this options struct.
     def updatelist(options)
-        var folders = path.listdir(options['basefolder'])
-        options['foldersChanged'] = 0
+        if options['http']
+        else
+            var folders = path.listdir(options['basefolder'])
+            options['foldersChanged'] = 0
 
-        var config = '{"folders":['
-        var addcomma
-        for f:folders
-            print(f)
-            print(string.find(f, '.'))
-            if string.find(f, '.') < 0
-                if addcomma
-                    config = config .. ','
+            var config = '{"folders":['
+            var addcomma
+            for f:folders
+                #print(f)
+                #print(string.find(f, '.'))
+                if string.find(f, '.') < 0
+                    if addcomma
+                        config = config .. ','
+                    end
+                    config = config .. '"'..f..'"'
+                    addcomma = 1
                 end
-                config = config .. '"'..f..'"'
-                addcomma = 1
             end
-        end
-        config = config .. ']}';
+            config = config .. ']}';
 
-        var f
-        try
-            f = open(options['basefolder'] .. '/folders.json', 'w')
-        except ..
-            print('could not write '..options['basefolder'] .. '/folders.json')
-        end
-        if f        
-            f.write(config)
-            f.close()
+            var datastr = config;
+            self.saveraw(options, datastr, 'folders.json')
         end
     end
 
@@ -474,31 +567,28 @@ class camdriver
         var pic = 0
         while pic < options['multipic']
             pic = pic + 1
-            var picname = "frame" .. options['frame'] .. '.jpg'
-            var diffname = "diff" .. options['frame'] .. '.jpg'
-            var picjson = "frame" .. options['frame'] .. '.json'
+
+            var framename = string.format('%05d', options['frame']);
+
+            var picname = "frame" .. framename .. '.jpg'
+            var diffname = "diff" .. framename .. '.jpg'
+            var picjson = "frame" .. framename .. '.json'
             details['frame'] = picname
 
-            # save a fullres
-            # wcsavepic0 waits for the next frame to complete, then saves it.
-            var cmd = "wcsavepic0 ".. options['currfolder'] .. picname
-            var resobj = tasmota.cmd(cmd);
-            print('saved pic '..cmd..resobj)
-
+            self.savepicraw(options, 0, options['currfolderrel'] .. picname)
 
             # only get diff for first pic of multipic
             if options['savediff'] && pic == 0
                 # copy the diff image into slot 2
                 print('save diff')
-                cmd = "wcGetmotionpixels2 2"
-                resobj = tasmota.cmd(cmd);
+                var cmd = "wcGetmotionpixels2 2"
+                var resobj = tasmota.cmd(cmd);
                 print(resobj)
                 # jpeg encode it in slot 2
                 cmd = "wcConvertPicture2 0"
                 resobj = tasmota.cmd(cmd);
                 # save the encoded jpeg.
-                cmd = "wcsavepic2 ".. options['currfolder'] .. diffname
-                resobj = tasmota.cmd(cmd);
+                self.savepicraw(options, 2, options['currfolderrel'] .. diffname)
                 details['diff'] = diffname
             end
 
@@ -510,18 +600,8 @@ class camdriver
             t = tasmota.time_str(local)
             details['time'] = t
 
-            # write the json file to hold metadata about the image(s)
-            var f
-            try
-                f = open(options['currfolder'] .. picjson, 'w')
-            except ..
-                print('could not write '..options['currfolder'] .. picjson)
-            end
-            if f
-                var d = json.dump(details, 'format');
-                f.write(d)
-                f.close()
-            end
+            var d = json.dump(details, 'format');
+            self.saveraw(options, d, options['currfolderrel'] .. picjson)
             options['frame'] = options['frame'] + 1
         end
         self.updateconfig(options)
