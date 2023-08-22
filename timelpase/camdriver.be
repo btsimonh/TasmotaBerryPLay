@@ -356,7 +356,6 @@ class camdriver
             else
                 print('could not creat folder '.. options['basefolder'])
             end
-            options['currfolderrel'] = options['folder'] .. '/'
             options['currfolder'] = options['basefolder'] .. '/' .. options['folder']
             print('try create folder '..options['currfolder'])
             if path.mkdir(options['currfolder'])
@@ -365,6 +364,7 @@ class camdriver
                 print('could not creat folder '.. options['currfolder'])
             end
         end
+        options['currfolderrel'] = options['folder'] .. '/'
 
         # read firstframe and frame from config.json if it exists.
         var configread = 0;
@@ -417,7 +417,7 @@ class camdriver
         var cl = webclient()
         var url = options['http'] .. '/' .. relpath;
         cl.begin(url)
-        cl.addheader('content-type', 'application/octet-stream');
+        cl.add_header('content-type', 'application/octet-stream');
         var body = bytesdata
         var r = cl.POST(body)
         var s = cl.get_string();
